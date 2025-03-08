@@ -6,3 +6,6 @@ smtplib
 email
 numpy
 scikit-learn==1.3.0
+scipy
+joblib
+threadpoolctl
