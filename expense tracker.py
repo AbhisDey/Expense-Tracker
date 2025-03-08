@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
 import requests
+import numpy as np
 
 # Currency Conversion API
 CURRENCY_API = "https://api.exchangerate-api.com/v4/latest/INR"
@@ -24,7 +25,7 @@ st.title("Vietnam Trip Expense Tracker")
 
 # Input fields
 st.header("Add Expense")
-category = st.selectbox("Category", ["Flight", "Hotel", "Food", "Transport", "Sightseeing", "Shopping", "Miscellaneous"])
+category = st.selectbox("Category", ["Flight", "Hotel", "Food", "Transport", "Sightseeing", "Shopping", "Miscellaneous", "Personal Shopping"])
 date = st.date_input("Date")
 amount = st.number_input("Amount (in ₹)", min_value=0.0, format='%.2f')
 description = st.text_input("Description")
@@ -58,6 +59,14 @@ if len(st.session_state['expenses']) > 0:
     ax.legend(loc='best')
     st.pyplot(fig)
 
+    # Plot spending trend by date
+    st.write("### Daily Spending Trend")
+    fig, ax = plt.subplots()
+    df.groupby('Date')['Amount (₹)'].sum().plot(kind='line', marker='o', ax=ax)
+    ax.set_ylabel('Amount (₹)')
+    ax.set_title('Spending Trend Over Time')
+    st.pyplot(fig)
+
     # Download the expenses as CSV
     st.download_button(
         label="Download CSV",
@@ -71,14 +80,28 @@ else:
 # Remaining budget alert
 st.sidebar.header("Budget Tracker")
 total_budget = st.sidebar.number_input("Total Trip Budget (in ₹)", min_value=0.0, format='%.2f')
+trip_days = st.sidebar.number_input("Total Trip Days", min_value=1, value=6)
+
 if total_budget > 0:
     remaining_budget = total_budget - total_expense
     st.sidebar.write(f"### Remaining Budget: ₹{remaining_budget:.2f}")
-    
+
     if remaining_budget < 0:
         st.sidebar.error("⚠️ You have exceeded your budget!")
     else:
         st.sidebar.success("✅ You are within your budget.")
+
+    # Expense Forecasting
+    daily_spending = total_expense / len(df['Date'].unique())
+    projected_expense = daily_spending * trip_days
+
+    st.sidebar.write(f"💸 **Projected Total Expense:** ₹{projected_expense:.2f}")
+
+    if projected_expense > total_budget:
+        st.sidebar.error("⚠️ You are likely to exceed your budget!")
+    else:
+        remaining_daily_budget = remaining_budget / (trip_days - len(df['Date'].unique()))
+        st.sidebar.write(f"💵 **Suggested Daily Budget:** ₹{remaining_daily_budget:.2f}")
 
 # Show real-time conversion rate
 st.sidebar.write(f"💱 Current INR to VND Rate: ₹1 = {vnd_rate:.2f} VND")
