@@ -2,26 +2,53 @@ import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
 import requests
+import smtplib
+from email.mime.text import MIMEText
 import numpy as np
+import datetime
+from sklearn.linear_model import LinearRegression
 
 # Currency Conversion API
 CURRENCY_API = "https://api.exchangerate-api.com/v4/latest/INR"
 
 try:
     response = requests.get(CURRENCY_API)
-    response.raise_for_status()  # Raise HTTPError for bad responses
+    response.raise_for_status()
     data = response.json()
     vnd_rate = data['rates']['VND']
 except requests.exceptions.RequestException as e:
     st.error("⚠️ Failed to fetch the latest currency conversion rate. Using a default rate of ₹1 = 300 VND")
-    vnd_rate = 300  # Default conversion rate in case of API failure
+    vnd_rate = 300
 
 # Initialize session state for expenses
 if 'expenses' not in st.session_state:
     st.session_state['expenses'] = []
 
+if 'category_limits' not in st.session_state:
+    st.session_state['category_limits'] = {}
+
+# Email Configuration
+EMAIL = 'youremail@gmail.com'
+PASSWORD = 'yourpassword'
+
+# Function to send daily report
+def send_email_report(expenses, remaining_budget):
+    body = f"Daily Expense Report:\n\n"
+    for exp in expenses:
+        body += f"{exp['Date']}: {exp['Category']} - ₹{exp['Amount (₹)']}\n"
+    body += f"\nRemaining Budget: ₹{remaining_budget:.2f}"
+
+    msg = MIMEText(body)
+    msg['Subject'] = 'Your Daily Expense Report'
+    msg['From'] = EMAIL
+    msg['To'] = EMAIL
+
+    with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
+        server.login(EMAIL, PASSWORD)
+        server.sendmail(EMAIL, EMAIL, msg.as_string())
+
 # App title
-st.title("Trip Expense Tracker")
+st.title("Vietnam Trip Expense Tracker")
 
 # Input fields
 st.header("Add Expense")
@@ -39,6 +66,12 @@ if st.button("Add Expense"):
         'Amount (VND)': vnd_amount,
         'Description': description
     })
+
+# Set category-wise budget limits
+st.sidebar.header("Set Category-wise Budget")
+for cat in ["Flight", "Hotel", "Food", "Transport", "Sightseeing", "Shopping", "Miscellaneous", "Personal Shopping"]:
+    limit = st.sidebar.number_input(f"{cat} Budget (in ₹)", min_value=0.0, format='%.2f')
+    st.session_state['category_limits'][cat] = limit
 
 # Display the expenses in a table
 st.header("Expense Summary")
@@ -67,41 +100,39 @@ if len(st.session_state['expenses']) > 0:
     ax.set_title('Spending Trend Over Time')
     st.pyplot(fig)
 
-    # Download the expenses as CSV
-    st.download_button(
-        label="Download CSV",
-        data=df.to_csv(index=False).encode('utf-8'),
-        file_name='vietnam_expenses.csv',
-        mime='text/csv'
-    )
-else:
-    st.write("No expenses added yet.")
+    # AI Prediction Model
+    st.write("### Expense Prediction Using AI")
+    df['Days'] = np.arange(1, len(df)+1)
+    model = LinearRegression()
+    model.fit(df[['Days']], df['Amount (₹)'])
+    predicted = model.predict(df[['Days']])
+    st.line_chart(predicted)
 
-# Remaining budget alert
-st.sidebar.header("Budget Tracker")
-total_budget = st.sidebar.number_input("Total Trip Budget (in ₹)", min_value=0.0, format='%.2f')
-trip_days = st.sidebar.number_input("Total Trip Days", min_value=1, value=6)
+    # Inbuilt Calculator
+    st.sidebar.header("Quick Calculator")
+    num1 = st.sidebar.number_input("Enter Number 1", value=0)
+    num2 = st.sidebar.number_input("Enter Number 2", value=0)
+    operation = st.sidebar.selectbox("Operation", ["Add", "Subtract", "Multiply", "Divide"])
+    if operation == "Add":
+        st.sidebar.write(f"Result: {num1 + num2}")
+    elif operation == "Subtract":
+        st.sidebar.write(f"Result: {num1 - num2}")
+    elif operation == "Multiply":
+        st.sidebar.write(f"Result: {num1 * num2}")
+    elif operation == "Divide" and num2 != 0:
+        st.sidebar.write(f"Result: {num1 / num2}")
 
-if total_budget > 0:
-    remaining_budget = total_budget - total_expense
-    st.sidebar.write(f"### Remaining Budget: ₹{remaining_budget:.2f}")
+    # Check category budget limits
+    st.write("### Category-wise Budget Tracking")
+    for cat in st.session_state['category_limits'].keys():
+        spent = df[df['Category'] == cat]['Amount (₹)'].sum()
+        limit = st.session_state['category_limits'][cat]
+        if spent > limit > 0:
+            st.warning(f"⚠️ Over Budget for {cat}! Spent ₹{spent:.2f} out of ₹{limit:.2f}")
 
-    if remaining_budget < 0:
-        st.sidebar.error("⚠️ You have exceeded your budget!")
-    else:
-        st.sidebar.success("✅ You are within your budget.")
-
-    # Expense Forecasting
-    daily_spending = total_expense / len(df['Date'].unique())
-    projected_expense = daily_spending * trip_days
-
-    st.sidebar.write(f"💸 **Projected Total Expense:** ₹{projected_expense:.2f}")
-
-    if projected_expense > total_budget:
-        st.sidebar.error("⚠️ You are likely to exceed your budget!")
-    else:
-        remaining_daily_budget = remaining_budget / (trip_days - len(df['Date'].unique()))
-        st.sidebar.write(f"💵 **Suggested Daily Budget:** ₹{remaining_daily_budget:.2f}")
+    # Send daily email
+    if datetime.datetime.now().hour == 9:
+        send_email_report(st.session_state['expenses'], total_expense)
 
 # Show real-time conversion rate
 st.sidebar.write(f"💱 Current INR to VND Rate: ₹1 = {vnd_rate:.2f} VND")
