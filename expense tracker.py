@@ -6,7 +6,6 @@ import smtplib
 from email.mime.text import MIMEText
 import numpy as np
 import datetime
-from sklearn.linear_model import LinearRegression
 
 # Currency Conversion API
 CURRENCY_API = "https://api.exchangerate-api.com/v4/latest/INR"
@@ -99,14 +98,6 @@ if len(st.session_state['expenses']) > 0:
     ax.set_ylabel('Amount (₹)')
     ax.set_title('Spending Trend Over Time')
     st.pyplot(fig)
-
-    # AI Prediction Model
-    st.write("### Expense Prediction Using AI")
-    df['Days'] = np.arange(1, len(df)+1)
-    model = LinearRegression()
-    model.fit(df[['Days']], df['Amount (₹)'])
-    predicted = model.predict(df[['Days']])
-    st.line_chart(predicted)
 
     # Inbuilt Calculator
     st.sidebar.header("Quick Calculator")
