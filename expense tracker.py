@@ -21,7 +21,7 @@ if 'expenses' not in st.session_state:
     st.session_state['expenses'] = []
 
 # App title
-st.title("Vietnam Trip Expense Tracker")
+st.title("Trip Expense Tracker")
 
 # Input fields
 st.header("Add Expense")
