@@ -2,8 +2,6 @@ import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
 import requests
-import smtplib
-from email.mime.text import MIMEText
 import numpy as np
 import datetime
 
@@ -25,26 +23,6 @@ if 'expenses' not in st.session_state:
 
 if 'category_limits' not in st.session_state:
     st.session_state['category_limits'] = {}
-
-# Email Configuration
-EMAIL = 'youremail@gmail.com'
-PASSWORD = 'yourpassword'
-
-# Function to send daily report
-def send_email_report(expenses, remaining_budget):
-    body = f"Daily Expense Report:\n\n"
-    for exp in expenses:
-        body += f"{exp['Date']}: {exp['Category']} - ₹{exp['Amount (₹)']}\n"
-    body += f"\nRemaining Budget: ₹{remaining_budget:.2f}"
-
-    msg = MIMEText(body)
-    msg['Subject'] = 'Your Daily Expense Report'
-    msg['From'] = EMAIL
-    msg['To'] = EMAIL
-
-    with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
-        server.login(EMAIL, PASSWORD)
-        server.sendmail(EMAIL, EMAIL, msg.as_string())
 
 # App title
 st.title("Vietnam Trip Expense Tracker")
@@ -120,10 +98,6 @@ if len(st.session_state['expenses']) > 0:
         limit = st.session_state['category_limits'][cat]
         if spent > limit > 0:
             st.warning(f"⚠️ Over Budget for {cat}! Spent ₹{spent:.2f} out of ₹{limit:.2f}")
-
-    # Send daily email
-    if datetime.datetime.now().hour == 9:
-        send_email_report(st.session_state['expenses'], total_expense)
 
 # Show real-time conversion rate
 st.sidebar.write(f"💱 Current INR to VND Rate: ₹1 = {vnd_rate:.2f} VND")
