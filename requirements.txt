@@ -1,7 +1,0 @@
-streamlit
-pandas
-matplotlib
-requests
-smtplib
-email
-numpy
